@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets (NEVER commit)
+.env
+.env.*
+.env.local
+.env*.local
+*.pem
+*.key
+service-account*.json
+
+# Vercel
+.vercel
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.log
+
+# Local artifacts
+Samantha.zip
+/tmp/
+
+# accidental duplicates
+main/
