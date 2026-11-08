@@ -1,0 +1,8 @@
+# Server-side LiveKit agent worker (deploy separately, not on Vercel)
+livekit-agent/
+main/
+Samantha.zip
+vapi-prompt-reference.md
+AGENTS.md
+.env*
+*.local
