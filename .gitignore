@@ -10,6 +10,11 @@ node_modules/
 *.key
 service-account*.json
 
+# Next.js
+.next/
+out/
+next-env.d.ts
+
 # Vercel
 .vercel
 

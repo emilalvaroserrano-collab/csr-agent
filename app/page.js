@@ -17,6 +17,18 @@ import {
   serverTimestamp,
 } from "../lib/firebase";
 
+async function routeAfterAuth(user, router, isNew = false) {
+  if (isNew) { router.replace("/onboarding"); return; }
+  try {
+    const snap = await get(ref(db, `users/${user.uid}`));
+    const v = snap.exists() ? snap.val() : {};
+    const complete = v?.profile?.onboardingComplete || v?.agentConfig?.slug || v?.csrConfig?.slug || v?.csrAgent?.slug;
+    router.replace(complete ? "/dashboard" : "/onboarding");
+  } catch {
+    router.replace("/onboarding");
+  }
+}
+
 export default function AuthPage() {
   const router = useRouter();
   const [mode, setMode] = useState("login"); // login | register
@@ -36,7 +48,7 @@ export default function AuthPage() {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (user) => {
       if (user && !user.isAnonymous) {
-        // Ensure profile record exists, then go to customization/dashboard
+        // Ensure profile record exists, then route to onboarding or dashboard
         try {
           const pRef = ref(db, `users/${user.uid}/profile`);
           const snap = await get(pRef);
@@ -49,10 +61,8 @@ export default function AuthPage() {
               updatedAt: serverTimestamp(),
             });
           }
-        } catch (e) {
-          console.error(e);
-        }
-        router.replace("/dashboard");
+        } catch (e) { console.error(e); }
+        await routeAfterAuth(user, router, false);
       } else {
         setChecking(false);
       }
@@ -73,14 +83,15 @@ export default function AuthPage() {
           email: cred.user.email || email.trim(),
           displayName: name.trim() || cred.user.displayName || "",
           ownerUid: cred.user.uid,
+          onboardingComplete: false,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
         showToast("Account created. Redirecting…");
-        router.replace("/dashboard");
+        router.replace("/onboarding");
       } else {
-        await signInWithEmailAndPassword(auth, email.trim(), password);
-        router.replace("/dashboard");
+        const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+        await routeAfterAuth(cred.user, router, false);
       }
     } catch (err) {
       console.error(err);
@@ -96,19 +107,20 @@ export default function AuthPage() {
       const cred = await signInWithPopup(auth, googleProvider);
       const pRef = ref(db, `users/${cred.user.uid}/profile`);
       const snap = await get(pRef);
-      if (!snap.exists()) {
+      const isNew = !snap.exists();
+      if (isNew) {
         await set(pRef, {
           email: cred.user.email || "",
           displayName: cred.user.displayName || "",
           ownerUid: cred.user.uid,
+          onboardingComplete: false,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         });
       } else {
-        // keep profile fresh
-        await set(ref(db, `users/${cred.user.uid}/profile/updatedAt`), serverTimestamp());
+        try { await set(ref(db, `users/${cred.user.uid}/profile/updatedAt`), serverTimestamp()); } catch {}
       }
-      router.replace("/dashboard");
+      await routeAfterAuth(cred.user, router, isNew);
     } catch (err) {
       console.error(err);
       showToast(err?.message || "Google sign-in failed");
