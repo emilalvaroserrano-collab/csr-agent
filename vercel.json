@@ -1,4 +1,6 @@
 {
+  "framework": "nextjs",
+  "buildCommand": "next build",
   "redirects": [
     { "source": "/index.html", "destination": "/", "permanent": true },
     { "source": "/calling.html", "destination": "/calling", "permanent": true }
