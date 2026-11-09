@@ -202,14 +202,15 @@ async function fetchLiveKitToken(roomName) {
     identity: `web-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     metadata: {
       source: "ABI Tech CSR Web",
+      submittedAt: submittedLead.submittedAt || Date.now(),
+      agentName: cfg.agentName || "customer-support-1bda",
       lead: {
-        name: submittedLead.name,
-        company: submittedLead.company,
-        phone: submittedLead.phone,
-        email: submittedLead.email,
-        requirement: submittedLead.requirement,
+        name: String(submittedLead.name || "").trim(),
+        company: String(submittedLead.company || "").trim(),
+        phone: String(submittedLead.phone || "").trim(),
+        email: String(submittedLead.email || "").trim(),
+        requirement: String(submittedLead.requirement || "").trim(),
       },
-      agentName: cfg.agentName || "Samantha",
     },
   };
 
