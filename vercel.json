@@ -1,6 +1,8 @@
 {
-  "version": 2,
-  "cleanUrls": true,
+  "redirects": [
+    { "source": "/index.html", "destination": "/", "permanent": true },
+    { "source": "/calling.html", "destination": "/calling", "permanent": true }
+  ],
   "headers": [
     {
       "source": "/(.*)",
