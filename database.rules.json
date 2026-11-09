@@ -1,0 +1,31 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+    "publicCsrs": {
+      "$slug": {
+        ".read": true,
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() === auth.uid) && newData.child('ownerUid').val() === auth.uid"
+      }
+    },
+    "publicInquiries": {
+      "$slug": {
+        ".read": "auth != null && root.child('publicCsrs/' + $slug + '/ownerUid').val() === auth.uid",
+        "$id": {
+          ".write": "auth != null && (!data.exists() || data.child('visitorUid').val() === auth.uid) && newData.hasChildren(['csrSlug']) && newData.child('csrSlug').val() === $slug",
+          ".validate": "newData.hasChildren(['csrSlug'])"
+        }
+      }
+    },
+    "leads": {
+      "$uid": {
+        ".read": false,
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    }
+  }
+}

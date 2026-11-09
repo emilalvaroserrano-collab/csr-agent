@@ -1,5 +1,130 @@
-/* eslint-disable @next/next/no-sync-scripts */
-export default function HomePage() {
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  auth,
+  db,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signInWithPopup,
+  googleProvider,
+  updateProfile,
+  ref,
+  get,
+  set,
+  serverTimestamp,
+} from "../lib/firebase";
+
+export default function AuthPage() {
+  const router = useRouter();
+  const [mode, setMode] = useState("login"); // login | register
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const [toast, setToast] = useState("");
+
+  function showToast(msg) {
+    setToast(msg);
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(() => setToast(""), 2600);
+  }
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, async (user) => {
+      if (user && !user.isAnonymous) {
+        // Ensure profile record exists, then go to customization/dashboard
+        try {
+          const pRef = ref(db, `users/${user.uid}/profile`);
+          const snap = await get(pRef);
+          if (!snap.exists()) {
+            await set(pRef, {
+              email: user.email || "",
+              displayName: user.displayName || "",
+              ownerUid: user.uid,
+              createdAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+        router.replace("/dashboard");
+      } else {
+        setChecking(false);
+      }
+    });
+    return () => unsub();
+  }, [router]);
+
+  async function handleEmailAuth(e) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      if (mode === "register") {
+        const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+        if (name.trim()) {
+          try { await updateProfile(cred.user, { displayName: name.trim() }); } catch {}
+        }
+        await set(ref(db, `users/${cred.user.uid}/profile`), {
+          email: cred.user.email || email.trim(),
+          displayName: name.trim() || cred.user.displayName || "",
+          ownerUid: cred.user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+        showToast("Account created. Redirecting…");
+        router.replace("/dashboard");
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+        router.replace("/dashboard");
+      }
+    } catch (err) {
+      console.error(err);
+      showToast(err?.message || "Authentication failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleGoogle() {
+    setBusy(true);
+    try {
+      const cred = await signInWithPopup(auth, googleProvider);
+      const pRef = ref(db, `users/${cred.user.uid}/profile`);
+      const snap = await get(pRef);
+      if (!snap.exists()) {
+        await set(pRef, {
+          email: cred.user.email || "",
+          displayName: cred.user.displayName || "",
+          ownerUid: cred.user.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        // keep profile fresh
+        await set(ref(db, `users/${cred.user.uid}/profile/updatedAt`), serverTimestamp());
+      }
+      router.replace("/dashboard");
+    } catch (err) {
+      console.error(err);
+      showToast(err?.message || "Google sign-in failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (checking) {
+    return (
+      <main className="app" style={{ justifyContent: "center", alignItems: "center", textAlign: "center" }}>
+        <div className="status-pill"><span className="dot-sm"></span>Loading…</div>
+      </main>
+    );
+  }
+
   return (
     <>
       <main className="app">
@@ -8,70 +133,64 @@ export default function HomePage() {
             <div className="brand-mark" aria-hidden="true">A</div>
             <div>
               <small>ABI TECH</small>
-              <strong>Customer Care</strong>
+              <strong>CSR Studio</strong>
             </div>
           </div>
-          <div className="status-pill"><span className="dot-sm"></span>Online</div>
+          <div className="status-pill"><span className="dot-sm"></span>Secure</div>
         </header>
 
         <section className="hero">
-          <div className="eyebrow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V7l7-4z"/><path d="M9.5 12l1.7 1.7L14.8 10"/></svg>
-            Talk to Abbie
-          </div>
-          <h1>Tell us what you need.</h1>
-          <p>Share a few details first. Abbie will receive them as context so you can start the conversation without repeating yourself.</p>
+          <div className="eyebrow">Owner Access</div>
+          <h1>{mode === "register" ? "Create your CSR" : "Welcome back"}</h1>
+          <p>Register or sign in to customize your agent, save your configuration, and get a unique public CSR URL.</p>
         </section>
 
-        <form className="form" id="leadForm">
-          <div className="form-title">Your inquiry details</div>
+        <form className="form" onSubmit={handleEmailAuth}>
+          <div className="form-title">{mode === "register" ? "Register with email" : "Sign in with email"}</div>
+          {mode === "register" && (
+            <div className="field">
+              <label htmlFor="name">Name</label>
+              <input id="name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" placeholder="Your name" />
+            </div>
+          )}
           <div className="field">
-            <label htmlFor="leadName">Name</label>
-            <input id="leadName" autoComplete="name" required placeholder="Your full name" />
+            <label htmlFor="email">Email</label>
+            <input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" required placeholder="you@company.com" />
           </div>
           <div className="field">
-            <label htmlFor="leadCompany">Company</label>
-            <input id="leadCompany" autoComplete="organization" required placeholder="Company or business name" />
+            <label htmlFor="password">Password</label>
+            <input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete={mode === "register" ? "new-password" : "current-password"} required minLength={6} placeholder="At least 6 characters" />
           </div>
-          <div className="field">
-            <label htmlFor="leadReason">Reason for Inquiry</label>
-            <textarea id="leadReason" required maxLength={100} placeholder="One or two sentences (max 100 characters)"></textarea>
-            <small className="field-hint">Keep it brief — one or two sentences, max 100 characters.</small>
-          </div>
-          <div className="field">
-            <label htmlFor="leadPhone">Phone</label>
-            <input id="leadPhone" type="tel" autoComplete="tel" required placeholder="+63..." />
-          </div>
-          <div className="field">
-            <label htmlFor="leadEmail">Email</label>
-            <input id="leadEmail" type="email" autoComplete="email" required placeholder="you@company.com" />
-          </div>
-          <button className="submit" type="submit">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>
-            Submit Now
+          <button className="submit" type="submit" disabled={busy}>
+            {busy ? "Please wait…" : mode === "register" ? "Create account" : "Sign in"}
           </button>
-          <p className="note">Your submitted details will be used as context for your ABI Tech call.</p>
+          <button className="end" type="button" onClick={handleGoogle} disabled={busy} style={{ marginTop: 10, background: "linear-gradient(180deg,#2a3344,#1a2230)", boxShadow: "none", border: "1px solid var(--line)" }}>
+            Continue with Google
+          </button>
+          <p className="note">
+            {mode === "register" ? "Already have an account? " : "New here? "}
+            <button type="button" onClick={() => setMode(mode === "register" ? "login" : "register")} style={{ background: "none", border: 0, color: "var(--green)", fontWeight: 700, cursor: "pointer", padding: 0 }}>
+              {mode === "register" ? "Sign in" : "Register"}
+            </button>
+          </p>
         </form>
       </main>
 
       <nav className="bottom-nav" aria-label="Main navigation">
         <a className="tab active" href="/" aria-current="page">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 10.5L12 4l8 6.5"/><path d="M6.5 9.5V19a1 1 0 001 1H10v-5h4v5h2.5a1 1 0 001-1V9.5"/></svg>
-          <span>Home</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/></svg>
+          <span>Access</span>
         </a>
-        <a className="tab" href="/calling" id="navCall">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M4 12a8 8 0 0116 0v4a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h1a6 6 0 00-12 0h1a2 2 0 012 2v3a2 2 0 01-2 2H6a2 2 0 01-2-2v-4z"/></svg>
-          <span>Support</span>
+        <a className="tab" href="/dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+          <span>Customize</span>
         </a>
-        <button className="tab" type="button" id="navHelp">
+        <button className="tab" type="button" onClick={() => showToast("Register or sign in to manage your CSR.")}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 015 0c0 1.7-2.5 2.2-2.5 4"/><circle cx="12" cy="17" r="1" fill="currentColor" stroke="none"/></svg>
           <span>Help</span>
         </button>
       </nav>
-
-      <div className="toast" id="toast" aria-live="polite"></div>
-      <script src="/js/config.js"></script>
-      <script src="/js/index.js"></script>
+      <div className={"toast" + (toast ? " show" : "")} aria-live="polite">{toast}</div>
     </>
   );
 }

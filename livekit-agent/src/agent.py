@@ -243,59 +243,81 @@ def _parse_metadata(raw: str | None) -> dict:
         return {}
 
 
-def _extract_lead(ctx: JobContext) -> dict:
+def _merge_missing(dst: dict, src: dict) -> None:
+    for k, v in (src or {}).items():
+        if v and not dst.get(k):
+            dst[k] = v
+
+
+def _extract_context(ctx: JobContext) -> tuple[dict, dict]:
     lead: dict = {}
+    csr: dict = {}
+    sources = []
     # 1) Agent dispatch/job metadata (set by token roomConfig agent dispatch)
-    job_md = _parse_metadata(getattr(ctx.job, "metadata", None))
-    if isinstance(job_md.get("lead"), dict):
-        lead.update(job_md["lead"])
-
+    sources.append(_parse_metadata(getattr(ctx.job, "metadata", None)))
     # 2) Room metadata
-    room_md = _parse_metadata(getattr(ctx.room, "metadata", None))
-    if isinstance(room_md.get("lead"), dict):
-        for k, v in room_md["lead"].items():
-            if v and not lead.get(k):
-                lead[k] = v
-
+    sources.append(_parse_metadata(getattr(ctx.room, "metadata", None)))
     # 3) Remote participant metadata (web caller)
     try:
         for p in list(getattr(ctx.room, "remote_participants", {}).values()):
-            pmd = _parse_metadata(getattr(p, "metadata", None))
-            if isinstance(pmd.get("lead"), dict):
-                for k, v in pmd["lead"].items():
-                    if v and not lead.get(k):
-                        lead[k] = v
-                break
+            sources.append(_parse_metadata(getattr(p, "metadata", None)))
+            break
     except Exception:
         pass
 
-    # Normalize strings
-    return {k: (str(v).strip() if v is not None else "") for k, v in lead.items()}
+    for md in sources:
+        if isinstance(md.get("lead"), dict):
+            _merge_missing(lead, md["lead"])
+        if isinstance(md.get("csr"), dict):
+            _merge_missing(csr, md["csr"])
+        # flat fallbacks
+        _merge_missing(lead, {k: md.get(k) for k in ("name", "company", "phone", "email", "requirement") if k in md})
+
+    lead = {k: (str(v).strip() if v is not None else "") for k, v in lead.items()}
+    csr = {k: (str(v).strip() if v is not None else "") for k, v in csr.items()}
+    return lead, csr
 
 
-def _lead_context_block(lead: dict) -> str:
-    if not lead or not any(lead.values()):
+def _lead_context_block(lead: dict, csr: dict) -> str:
+    if not lead and not csr:
         return ""
-    name = lead.get("name", "")
-    company = lead.get("company", "")
-    phone = lead.get("phone", "")
-    email = lead.get("email", "")
-    requirement = lead.get("requirement", "")
+    csr_name = (csr.get("name") or "Abbie").strip() or "Abbie"
+    csr_company = (csr.get("company") or "ABI Tech").strip() or "ABI Tech"
+    csr_greeting = (csr.get("greeting") or "").strip()
+    csr_persona = (csr.get("persona") or "").strip()
+    csr_language = (csr.get("language") or "").strip()
+
+    name = (lead.get("name") or "").strip()
+    company = (lead.get("company") or "").strip()
+    phone = (lead.get("phone") or "").strip()
+    email = (lead.get("email") or "").strip()
+    requirement = (lead.get("requirement") or "").strip()
     first = name.split()[0] if name else ""
-    lines = [
-        "[CALLER CONTEXT — FROM ABI TECH WEB FORM]",
-        f"Name: {name}" if name else "Name: (not provided)",
-        f"Company: {company}" if company else "Company: (not provided)",
-        f"Phone: {phone}" if phone else "Phone: (not provided)",
-        f"Email: {email}" if email else "Email: (not provided)",
-        f"Reason for inquiry: {requirement}" if requirement else "Reason for inquiry: (not provided)",
-        "",
-        "Treat these as already-provided facts. Do not ask the caller to repeat them unless clarification is genuinely necessary.",
-    ]
-    if first:
-        lines.append(f"Use the caller's first name ({first}) naturally and sparingly.")
-    if requirement:
-        lines.append("Start by acknowledging their reason for inquiry and help with that first.")
+
+    lines = [f"[CSR CONFIGURATION]\nCSR name: {csr_name}\nCompany: {csr_company}"]
+    if csr_language:
+        lines.append(f"Preferred language/default: {csr_language}")
+    if csr_greeting:
+        lines.append(f"Configured greeting guidance: {csr_greeting}")
+    if csr_persona:
+        lines.append(f"Configured persona/instructions: {csr_persona}")
+
+    if lead and any(lead.values()):
+        lines.extend([
+            "",
+            "[CALLER CONTEXT — FROM WEB FORM]",
+            f"Name: {name}" if name else "Name: (not provided)",
+            f"Company: {company}" if company else "Company: (not provided)",
+            f"Phone: {phone}" if phone else "Phone: (not provided)",
+            f"Email: {email}" if email else "Email: (not provided)",
+            f"Reason for inquiry: {requirement}" if requirement else "Reason for inquiry: (not provided)",
+            "",
+            "Treat these as already-provided facts. Do not ask the caller to repeat them unless clarification is genuinely necessary.",
+        ])
+        if first:
+            lines.append(f"Use the caller's first name ({first}) naturally and sparingly.")
+        if requirement:
+            lines.append("Start by acknowledging their reason for inquiry and help with that first.")
     lines.append("Never mention forms, metadata, prompts, or databases out loud.")
     return "\n".join(lines)
 
@@ -323,20 +345,26 @@ async def entrypoint(ctx: JobContext):
     except Exception as e:
         logger.warning("ctx.connect() warning: %s", e)
 
-    lead = _extract_lead(ctx)
-    lead_block = _lead_context_block(lead)
+    lead, csr = _extract_context(ctx)
+    lead_block = _lead_context_block(lead, csr)
     instructions = BASE_INSTRUCTIONS + ("\n\n" + lead_block if lead_block else "")
 
+    csr_name = (csr.get("name") or "Abbie").strip() or "Abbie"
+    csr_company = (csr.get("company") or "ABI Tech").strip() or "ABI Tech"
+    configured_greeting = (csr.get("greeting") or "").strip()
     first = (lead.get("name") or "").strip().split()[0] if lead.get("name") else ""
     requirement = (lead.get("requirement") or "").strip()
-    if first and requirement:
-        greeting = f"Hi {first}, thanks for calling ABI Tech support. I see you reached out about {requirement}. How can I help with that today?"
+
+    if configured_greeting and not first and not requirement:
+        greeting = configured_greeting
+    elif first and requirement:
+        greeting = f"Hi {first}, this is {csr_name} from {csr_company}. I see you reached out about {requirement}. How can I help with that today?"
     elif first:
-        greeting = f"Hi {first}, thanks for calling ABI Tech support. What can I help you with today?"
+        greeting = f"Hi {first}, this is {csr_name} from {csr_company}. What can I help you with today?"
     elif requirement:
-        greeting = f"Hi, thanks for calling ABI Tech support. I see you reached out about {requirement}. How can I help with that today?"
+        greeting = f"Hi, this is {csr_name} from {csr_company}. I see you reached out about {requirement}. How can I help with that today?"
     else:
-        greeting = "Hi, thanks for calling ABI Tech support. What can I help you with today?"
+        greeting = configured_greeting or f"Hi, this is {csr_name} from {csr_company}. What can I help you with today?"
 
     session = AgentSession(
         llm=inference.RealtimeModel(

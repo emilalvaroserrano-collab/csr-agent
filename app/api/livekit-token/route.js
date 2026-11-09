@@ -46,7 +46,7 @@ export async function POST(req) {
       const RoomAgentDispatch = lk.RoomAgentDispatch;
       if (RoomConfiguration && RoomAgentDispatch) {
         at.roomConfig = new RoomConfiguration({
-          agents: [new RoomAgentDispatch({ agentName, metadata: JSON.stringify({ lead: md.lead || null }) })],
+          agents: [new RoomAgentDispatch({ agentName, metadata: JSON.stringify({ lead: md.lead || null, csr: md.csr || null }) })],
         });
       } else {
         console.warn("Room agent dispatch types unavailable in livekit-server-sdk; ensure LiveKit Cloud dispatch rules are set for", agentName);
