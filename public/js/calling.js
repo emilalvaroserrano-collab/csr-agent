@@ -16,7 +16,7 @@ try {
   );
 } catch (_) {}
 if (!submittedLead) {
-  window.location.replace("./index.html");
+  window.location.replace("/");
   throw new Error("No submitted lead found");
 }
 
@@ -371,7 +371,7 @@ async function endCall() {
     await cleanupRoom();
     await finalizeLead("call_cancelled");
     try { sessionStorage.removeItem("abi-tech-pending-lead"); } catch (_) {}
-    window.location.href = "./index.html";
+    window.location.href = "/";
     return;
   }
   if (inCall) {
@@ -380,14 +380,14 @@ async function endCall() {
     await markCallEnded("call_ended");
     return;
   }
-  window.location.href = "./index.html";
+  window.location.href = "/";
 }
 
 function confirmLeave() {
   if (inCall || connecting || ringing) {
     if (confirm("End the current call?")) endCall();
   } else {
-    window.location.href = "./index.html";
+    window.location.href = "/";
   }
 }
 

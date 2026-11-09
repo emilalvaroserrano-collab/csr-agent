@@ -23,7 +23,7 @@ form.addEventListener("submit", (e) => {
   try {
     sessionStorage.setItem("abi-tech-pending-lead", JSON.stringify(lead));
     localStorage.setItem("abi-tech-last-lead", JSON.stringify(lead));
-    window.location.assign("./calling.html");
+    window.location.assign("/calling");
   } catch (err) {
     console.error(err);
     alert("Your browser blocked site storage. Please allow storage and try again.");
