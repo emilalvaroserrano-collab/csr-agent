@@ -17,10 +17,10 @@ export default function HomePage() {
         <section className="hero">
           <div className="eyebrow">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path d="M12 3l7 4v5c0 5-3.5 7.5-7 9-3.5-1.5-7-4-7-9V7l7-4z"/><path d="M9.5 12l1.7 1.7L14.8 10"/></svg>
-            Talk to Samantha
+            Talk to Abbie
           </div>
           <h1>Tell us what you need.</h1>
-          <p>Share a few details first. Samantha will receive them as context so you can start the conversation without repeating yourself.</p>
+          <p>Share a few details first. Abbie will receive them as context so you can start the conversation without repeating yourself.</p>
         </section>
 
         <form className="form" id="leadForm">

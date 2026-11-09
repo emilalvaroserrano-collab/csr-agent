@@ -19,7 +19,7 @@ export default function CallingPage() {
 
         <section className="center">
           <div className="avatar live" id="avatar"></div>
-          <h1 id="callTitle">Calling Samantha</h1>
+          <h1 id="callTitle">Calling Abbie</h1>
           <p className="sub">ABI Tech Customer Care</p>
           <div className="context" id="leadContext">Preparing your inquiry…</div>
           <div className="state">
@@ -30,7 +30,7 @@ export default function CallingPage() {
         </section>
 
         <button className="end" id="endBtn" type="button">Cancel Call</button>
-        <p className="hint">Your inquiry details are already available to Samantha.</p>
+        <p className="hint">Your inquiry details are already available to Abbie.</p>
       </main>
 
       <nav className="bottom-nav" aria-label="Main navigation">

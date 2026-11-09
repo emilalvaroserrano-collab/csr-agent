@@ -16,7 +16,7 @@ window.ABITECH_CONFIG = Object.freeze({
     // and return JSON: { "token": "<jwt>" } (also accepts accessToken/jwt).
     tokenEndpoint: "/api/livekit-token",
     // Agent dispatch name (matches @server.rtc_session(agent_name=...) in livekit-agent/src/agent.py)
-    agentName: "Samantha",
-    displayName: "Samantha"
+    agentName: "customer-support-1bda",
+    displayName: "Abbie"
   }
 });

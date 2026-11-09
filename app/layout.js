@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "ABI Tech — Talk to Samantha",
+  title: "ABI Tech — Talk to Abbie",
   description: "ABI Tech Customer Care",
   viewport: {
     width: "device-width",
